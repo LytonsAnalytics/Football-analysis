@@ -1,4 +1,3 @@
-# Football-analysis
 #Extracting Football data online 
 pl_2017 <- read.csv(url("http://football-data.co.uk/mmz4281/1718/E0.csv"))
 pl_2016 <- read.csv(url("http://football-data.co.uk/mmz4281/1617/E0.csv"))
@@ -8,9 +7,8 @@ epl_2017 <-join(pl_2017, pl_2016 , by = NULL, type= "full")
 attach(epl_1617)
 #Creating a dataframe and renaming the variables
 epl_dat <- data.frame(epl_2017$HomeTeam, epl_2017$AwayTeam,as.numeric(epl_2017$FTHG),
-                      as.numeric(epl_2017$FTAG))
+                 as.numeric(epl_2017$FTAG))
 names(epl_dat) <- c("Home", "Away", "HomeGoals", "AwayGoals")
-epl_dat
 data.frame(avg_home_goals = mean(epl_dat$HomeGoals),
            avg_away_goals = mean(epl_dat$AwayGoals))
 require(skellam)
@@ -30,12 +28,12 @@ poi.model <-
 summary(poi.model)
 #Predcitng goals for
 prod<- predict(poi.model, 
-               data.frame(home=1, team="Man United", 
-                          opponent="Liverpool"), type="response")
+        data.frame(home=1, team="Man United", 
+                   opponent="Crystal Palace"), type="response")
 
 pred<- predict(poi.model, 
-               data.frame(home=1, team="Liverpool", 
-                          opponent="Man United"), type="response")
+        data.frame(home=1, team="Crystal Palace", 
+                   opponent="Man United"), type="response")
 #Simulating 
 simulate_match <- function(fo.model, HomeTeam, AwayTeam, max_goals=10){
   home_goals_avg <- predict(fo.model,
@@ -46,7 +44,7 @@ simulate_match <- function(fo.model, HomeTeam, AwayTeam, max_goals=10){
                                        opponent=HomeTeam), type="response")
   dpois(0:max_goals, home_goals_avg) %o% dpois(0:max_goals, away_goals_avg) 
 }
-man_palace <- simulate_match(poi.model, "Liverpool", "Man United", max_goals=5)
+man_palace <- simulate_match(poi.model, "Man United", "Crystal Palace", max_goals=5)
 C1<- man_palace[1,]
 CO<- 1/C1
 solve(1/man_palace[,])
@@ -90,3 +88,5 @@ legend(x=4, y=0.4, legend=c("Man United", "Cystal Palace"), pch=c(21, 24))
 #difference
 goalDiffRange <- -7:7
 plot(goalDiffRange, dskellam(goalDiffRange, prod, pred), type="b", main="Goal difference, Man United vs. Crystal Palace", ylab="Probability", xlab="Goal difference")
+
+
