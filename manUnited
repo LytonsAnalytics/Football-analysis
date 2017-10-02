@@ -1,0 +1,90 @@
+#Extracting Football data online 
+pl_2017 <- read.csv(url("http://football-data.co.uk/mmz4281/1718/E0.csv"))
+pl_2016 <- read.csv(url("http://football-data.co.uk/mmz4281/1617/E0.csv"))
+#Merging the two documents
+require(plyr)
+epl_2017 <-join(pl_2017, pl_2016 , by = NULL, type= "full")
+attach(epl_1617)
+#Creating a dataframe and renaming the variables
+epl_dat <- data.frame(epl_2017$HomeTeam, epl_2017$AwayTeam,as.numeric(epl_2017$FTHG),
+                 as.numeric(epl_2017$FTAG))
+names(epl_dat) <- c("Home", "Away", "HomeGoals", "AwayGoals")
+epl_dat
+data.frame(avg_home_goals = mean(epl_dat$HomeGoals),
+           avg_away_goals = mean(epl_dat$AwayGoals))
+require(skellam)
+#Home and Away Average goals
+skellam::dskellam(0,mean(epl_dat$HomeGoals),mean(epl_dat$AwayGoals))
+require(magrittr)
+#Creating a Poison model 
+poi.model <- 
+  rbind(
+    data.frame(goals=epl_dat$HomeGoals,
+               team=epl_dat$Home,
+               opponent=epl_dat$Away,
+               home=1),
+    data.frame(goals=epl_dat$AwayGoals,
+               team=epl_dat$Away,
+               opponent=epl_dat$Home,
+               home=0)) %>%
+  glm(goals ~ home + team +opponent, family=poisson(link=log),data=.)
+summary(poi.model)
+#Predicitng goals for both Home and Away teams 
+prod<- predict(poi.model, 
+        data.frame(home=1, team="Man United", 
+                   opponent="Crystal Palace"), type="response")
+
+pred<- predict(poi.model, 
+        data.frame(home=1, team="Crystal Palace", 
+                   opponent="Man United"), type="response")
+#Simulating 
+simulate_match <- function(fo.model, HomeTeam, AwayTeam, max_goals=10){
+  home_goals_avg <- predict(fo.model,
+                            data.frame(home=1, team=HomeTeam, 
+                                       opponent=AwayTeam), type="response")
+  away_goals_avg <- predict(fo.model, 
+                            data.frame(home=0, team=AwayTeam, 
+                                       opponent=HomeTeam), type="response")
+  dpois(0:max_goals, home_goals_avg) %o% dpois(0:max_goals, away_goals_avg) 
+}
+man_palace <- simulate_match(poi.model, "Man United", "Crystal Palace", max_goals=5)
+# Probability of Man United winning
+sum(man_palace[lower.tri(man_palace)])
+
+
+# Probability of a draw
+sum(diag(man_palace))
+# Crystal Palace win
+sum(man_palace[upper.tri(man_palace)])
+# skelam distribution of goal difference
+require(magrittr)
+require(dplyr)
+require(ggplot2)
+mutate(epl_dat, goal_diff= epl_dat$HomeGoals- epl_dat$AwayGoals) %>%
+  group_by(goal_diff) %>%
+  summarize(actual=n()/nrow(.)) %>% 
+  inner_join(data.frame(goal_diff=-5:5,
+                        pred=skellam::dskellam(-5:5,mean(epl_dat$HomeGoals),
+                                               mean(epl_dat$AwayGoals))),
+             by=c("goal_diff")) %>%
+  ggplot(aes(x=as.factor(goal_diff))) + 
+  geom_bar(aes(y = actual,fill="d2"), stat="identity") +
+  geom_line(aes(y = pred, group = 1, color = "d1"), size=1.25) +
+  scale_colour_manual(name="Skellam",labels="", values=c("d1" = "blue", "d2" = "green"))+
+  scale_fill_manual(name="Actual",labels="",values="green")  +
+  ggtitle("Difference(Home Team vs Away Team) in Goals Scored ")  + xlab("Home Goals - Away Goals") + ylab("Proportion of Matches") +
+  my_post_theme
+#difference
+goalDiffRange <- -7:7
+plot(goalDiffRange, dskellam(goalDiffRange, prod, pred), type="b", main="Goal difference, Man United vs. Crystal Palace", ylab="Probability", xlab="Goal difference")
+require(VGAM)
+range <- 0:6
+hp <- dpois(plotrange, prod)
+ap <- dpois(plotrange, pred)
+plot(range, hp, type="b", ylim=range(hp, ap), main="Goals, Man Utd vs Crystal Palace", xlab="Number of goals", ylab="Probability")
+points(range, ap, type="b", pch=24)
+legend(x=4, y=0.4, legend=c("Man United", "Cystal Palace"), pch=c(21, 24))
+#difference
+goalDiffRange <- -7:7
+plot(goalDiffRange, dskellam(goalDiffRange, prod, pred), type="b", main="Goal difference, Man United vs. Crystal Palace", ylab="Probability", xlab="Goal difference")
+
